@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Panel - Goreti Devesorium</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Montserrat:wght@300;400;500&display=swap" rel="stylesheet">
+
+<style>
+
+body{
+    margin:0;
+    font-family:'Montserrat', sans-serif;
+    background:#111;
+    color:white;
+}
+
+/* HEADER */
+header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:20px;
+    background:black;
+}
+
+.logo{
+    font-family:'Playfair Display', serif;
+    font-size:22px;
+    letter-spacing:2px;
+}
+
+/* CONTENEDOR */
+.container{
+    max-width:900px;
+    margin:40px auto;
+    text-align:center;
+}
+
+/* TITULOS */
+h1, h2{
+    font-family:'Playfair Display', serif;
+    letter-spacing:2px;
+}
+
+/* INFO USUARIO */
+.info{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    margin-bottom:30px;
+}
+
+.info p{
+    background:#1c1c1c;
+    padding:12px;
+    border-radius:6px;
+    margin:0 auto;
+    width:300px;
+}
+
+/* TABLA */
+table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:20px;
+}
+
+th, td{
+    border:1px solid #333;
+    padding:10px;
+}
+
+th{
+    background:#000;
+}
+
+tr:nth-child(even){
+    background:#1a1a1a;
+}
+
+/* FORM */
+.form-reserva{
+    margin-top:40px;
+}
+
+input, select{
+    background:#1c1c1c;
+    color:white;
+    border:1px solid #333;
+    padding:10px;
+    margin:8px;
+    border-radius:5px;
+}
+
+input:focus, select:focus{
+    outline:none;
+    border:1px solid #8b0000;
+}
+
+/* BOTONES */
+.btn{
+    display:inline-block;
+    padding:12px 25px;
+    background:white;
+    color:black;
+    font-weight:bold;
+    border:none;
+    cursor:pointer;
+    transition:0.2s;
+}
+
+.btn:hover{
+    background:#8b0000;
+    color:white;
+}
+
+/* MENSAJE */
+#mensajeReserva{
+    margin-top:10px;
+    font-weight:bold;
+    color:#8b0000;
+}
+
+/* FOOTER */
+footer{
+    margin-top:50px;
+    padding:20px;
+    background:black;
+    text-align:center;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<header>
+    <div class="logo">GORETI DEVESORIUM</div>
+    <button class="btn" id="btnCerrar">Cerrar sesión</button>
+</header>
+
+<div class="container">
+
+    <h1>Panel del Huésped</h1>
+
+    <div class="info">
+        <p id="nombre"></p>
+        <p id="correo"></p>
+        <p id="documento"></p>
+    </div>
+
+    <h2>Mis Reservas</h2>
+
+    <table id="tablaReservas">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Habitación</th>
+                <th>Entrada</th>
+                <th>Salida</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <div class="form-reserva">
+        <h2>Reservar Habitación</h2>
+
+        <input type="date" id="entrada">
+        <input type="date" id="salida">
+
+        <br>
+
+        <select id="habitacion"></select>
+
+        <br>
+
+        <button class="btn" id="btnReservar">Reservar</button>
+
+        <p id="mensajeReserva"></p>
+    </div>
+
+</div>
+
+<footer>
+    © Goreti Devesorium
+</footer>
+
+<script>
+
+const usuario = JSON.parse(localStorage.getItem("usuario"));
+
+if(!usuario){
+    window.location.href="/pages/login_reserva.html";
+} else {
+
+    document.getElementById("nombre").innerText = "Nombre: " + usuario.nombre;
+    document.getElementById("correo").innerText = "Correo: " + usuario.correo;
+    document.getElementById("documento").innerText = "Documento: " + usuario.NO_Documento;
+
+    fetch(`/api/reservas?id_usuario=${usuario.id}`)
+    .then(res => res.json())
+    .then(data => {
+
+        const tbody = document.querySelector("#tablaReservas tbody");
+
+        if(data.length === 0){
+            tbody.innerHTML = "<tr><td colspan='4'>No tienes reservas aún</td></tr>";
+        } else {
+            data.forEach(r => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td>${r.id_reserva}</td>
+                    <td>${r.numero} - ${r.tipo}</td>
+                    <td>${r.fecha_entrada}</td>
+                    <td>${r.fecha_salida}</td>
+                    <td></td>
+                `;
+                const btn = document.createElement("button");
+                btn.textContent = "Eliminar";
+                btn.classList.add("btn-eliminar");
+                btn.addEventListener("click", () => {
+                    eliminarReserva(r.id_reserva);
+                });
+
+                tr.children[4].appendChild(btn);
+
+                tbody.appendChild(tr);
+            });
+        }
+
+    })
+    .catch(err => console.error("Error al cargar reservas:", err));
+}
+
+// cerrar sesión
+document.getElementById("btnCerrar").addEventListener("click", () => {
+    localStorage.removeItem("usuario");
+    location.replace("/pages/login_reserva.html");
+});
+
+// cargar habitaciones
+fetch('/api/habitaciones')
+.then(res => res.json())
+.then(data => {
+    const select = document.getElementById("habitacion");
+
+    data.forEach(h => {
+        const option = document.createElement("option");
+        option.value = h.id_habitacion;
+        option.text = h.numero + " - " + h.tipo;
+        select.appendChild(option);
+    });
+});
+
+// reservar
+document.getElementById("btnReservar").addEventListener("click", () => {
+
+    const usuario = JSON.parse(localStorage.getItem("usuario"));
+    const entrada = document.getElementById("entrada").value;
+    const salida = document.getElementById("salida").value;
+    const habitacion = document.getElementById("habitacion").value;
+
+    if(!entrada || !salida || !habitacion){
+        document.getElementById("mensajeReserva").innerText = "Completa todos los campos";
+        return;
+    }
+
+    fetch('/api/reservar', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({
+            id_usuario: usuario.id,
+            id_habitacion: habitacion,
+            fecha_entrada: entrada,
+            fecha_salida: salida
+        })
+    })
+    .then(res => {
+        if(!res.ok) throw new Error();
+        return res.json();
+    })
+    .then(data => {
+        document.getElementById("mensajeReserva").innerText = data.message;
+        setTimeout(() => location.reload(), 1000);
+    })
+    .catch(() => {
+        document.getElementById("mensajeReserva").innerText = "Error al reservar";
+    });
+    
+    
+});
+//eliminar
+async function eliminarReserva(id){
+
+    if(!confirm("¿Eliminar esta reserva?")) return;
+
+    try{
+        const res = await fetch(`/api/eliminar-reserva/${id}`, {
+            method: 'DELETE'
+        });
+
+        const data = await res.json();
+
+        alert(data.message);
+        location.reload();
+
+    }catch(err){
+        console.error(err);
+        alert("Error al eliminar");
+    }
+}  
+
+</script>
+
+</body>
+</html>
